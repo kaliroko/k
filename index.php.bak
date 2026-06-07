@@ -1,0 +1,141 @@
+<?php
+require_once 'security.php';
+initSecurityProtection();
+
+$posts = glob('posts/*.html');
+usort($posts, function($a, $b) {
+    return filemtime($b) - filemtime($a);
+});
+?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新宁县第三中学 - 万能墙</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="app-bar" id="navbar">
+        <a href="index.php" class="app-bar-title">三中万能墙</a>
+        <nav class="app-bar-nav">
+            <a href="index.php" class="chip active">首页</a>
+            <a href="create_post.php" class="chip">发布</a>
+            <a href="kali.php" class="chip">管理</a>
+            <button class="chip" id="themeToggle" title="切换主题">🌙</button>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div>
+            <h1 class="hero-title">欢迎来到三中万能墙</h1>
+            <p class="hero-subtitle">分享校园生活，记录青春点滴</p>
+        </div>
+    </section>
+
+    <main class="main">
+        <div class="group" style="margin-bottom: 16px;">
+            <a href="create_post.php" class="tile active wide">
+                <span class="tile-icon">✏️</span>
+                <span class="tile-label">发布文章</span>
+            </a>
+            <a href="kali.php" class="tile wide">
+                <span class="tile-icon">⚙️</span>
+                <span class="tile-label">管理中心</span>
+            </a>
+        </div>
+
+        <?php if (count($posts) > 0): ?>
+            <?php foreach (array_slice($posts, 0, 6) as $post): ?>
+                <?php
+                $content = file_get_contents($post);
+                $title = pathinfo($post, PATHINFO_FILENAME);
+                if (preg_match('/<title>(.*?)</title>/i', $content, $matches)) {
+                    $title = htmlspecialchars_decode(trim($matches[1]));
+                }
+                $date = date('Y年m月d日', filemtime($post));
+                $excerpt = substr(strip_tags($content), 0, 150) . '...';
+                ?>
+                <a href="post.php?file=<?= urlencode(basename($post)) ?>" class="card">
+                    <div class="card-title"><?= htmlspecialchars($title) ?></div>
+                    <div class="card-date"><?= $date ?></div>
+                    <div class="card-excerpt"><?= htmlspecialchars($excerpt) ?></div>
+                    <div class="card-actions">
+                        <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="empty">
+                <h2>暂无文章</h2>
+                <p>快来写下你的第一篇文章吧！</p>
+                <a href="create_post.php" class="tile active" style="display: inline-flex; margin-top: 16px; padding: 12px 24px;">
+                    <span class="tile-label">立即发布</span>
+                </a>
+            </div>
+        <?php endif; ?>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 新宁县第三中学 万能墙. 保留所有权利.</p>
+    </footer>
+
+    <div id="notice-dialog" class="dialog-overlay">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">公告通知</h3>
+                <button class="dialog-close" onclick="closeNotice()">×</button>
+            </div>
+            <div class="dialog-body">
+                <p>如今，官网已经使用kali api key 完善了key 接口测试</p>
+                <p><small>公告时间：<?php echo date('Y年m月d日'); ?></small></p>
+            </div>
+            <div class="dialog-footer">
+                <button class="chip" onclick="dismissNotice()">不再显示</button>
+                <button class="chip active" onclick="closeNotice()">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        function closeNotice() {
+            document.getElementById('notice-dialog').classList.remove('show');
+            localStorage.setItem('noticeDismissed', 'true');
+            localStorage.setItem('noticeDismissTime', Date.now());
+        }
+
+        function dismissNotice() {
+            document.getElementById('notice-dialog').classList.remove('show');
+            localStorage.setItem('noticeDismissed', 'true');
+            localStorage.setItem('noticeDismissTime', Date.now());
+            localStorage.setItem('noticeDismissLong', 'true');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const noticeDismissed = localStorage.getItem('noticeDismissed');
+            const dismissTime = parseInt(localStorage.getItem('noticeDismissTime') || '0');
+            const currentTime = Date.now();
+            const hours24 = 24 * 60 * 60 * 1000;
+            const days7 = 7 * 24 * 60 * 60 * 1000;
+
+            if (noticeDismissed === 'true') {
+                const timeDiff = currentTime - dismissTime;
+                const isLong = localStorage.getItem('noticeDismissLong') === 'true';
+                const threshold = isLong ? days7 : hours24;
+                if (timeDiff < threshold) {
+                    document.getElementById('notice-dialog').classList.remove('show');
+                } else {
+                    localStorage.removeItem('noticeDismissed');
+                    localStorage.removeItem('noticeDismissTime');
+                    localStorage.removeItem('noticeDismissLong');
+                }
+            }
+
+            setTimeout(() => {
+                document.getElementById('notice-dialog').classList.add('show');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

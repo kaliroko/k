@@ -1,0 +1,308 @@
+class SpringPhysics {
+  constructor(options = {}) {
+    this.dampingRatio = options.dampingRatio ?? 0.35;
+    this.stiffness = options.stiffness ?? 300;
+    this.mass = options.mass ?? 1;
+    this.position = options.initialPosition ?? 0;
+    this.velocity = options.initialVelocity ?? 0;
+    this.target = options.target ?? 1;
+    this.onUpdate = options.onUpdate ?? (() => {});
+    this.onComplete = options.onComplete ?? (() => {});
+    this.isAnimating = false;
+    this.lastTime = 0;
+  }
+
+  setTarget(target, initialVelocity = null) {
+    this.target = target;
+    if (initialVelocity !== null) this.velocity = initialVelocity;
+    this.lastTime = performance.now();
+    if (!this.isAnimating) {
+      this.isAnimating = true;
+      this._tick();
+    }
+  }
+
+  setPosition(pos) {
+    this.position = pos;
+    this.velocity = 0;
+    this.onUpdate(this.position, this.velocity);
+  }
+
+  updateParams({ dampingRatio, stiffness, mass }) {
+    if (dampingRatio !== undefined) this.dampingRatio = dampingRatio;
+    if (stiffness !== undefined) this.stiffness = stiffness;
+    if (mass !== undefined) this.mass = mass;
+  }
+
+  _tick() {
+    if (!this.isAnimating) return;
+    const now = performance.now();
+    const dt = Math.min((now - this.lastTime) / 1000, 0.032);
+    this.lastTime = now;
+
+    const displacement = this.position - this.target;
+    if (Math.abs(displacement) < 0.001 && Math.abs(this.velocity) < 0.001) {
+      this.position = this.target;
+      this.velocity = 0;
+      this.isAnimating = false;
+      this.onUpdate(this.position, 0);
+      this.onComplete();
+      return;
+    }
+
+    const springForce = -this.stiffness * displacement;
+    const dampingCoeff = 2 * this.dampingRatio * Math.sqrt(this.stiffness * this.mass);
+    const dampingForce = -dampingCoeff * this.velocity;
+    const acceleration = (springForce + dampingForce) / this.mass;
+
+    this.velocity += acceleration * dt;
+    this.position += this.velocity * dt;
+    this.onUpdate(this.position, this.velocity);
+    requestAnimationFrame(() => this._tick());
+  }
+}
+
+// ============ THEME ENGINE ============
+const ThemeEngine = {
+  init() {
+    const saved = localStorage.getItem('md3_theme');
+    if (saved === 'dark') {
+      document.body.classList.add('dark_theme');
+    } else if (saved === null) {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark_theme');
+        localStorage.setItem('md3_theme', 'dark');
+      }
+    }
+    
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (localStorage.getItem('md3_theme') === null) {
+          document.body.classList.toggle('dark_theme', e.matches);
+        }
+      });
+    }
+  },
+
+  toggle() {
+    const isDark = document.body.classList.toggle('dark_theme');
+    localStorage.setItem('md3_theme', isDark ? 'dark' : 'light');
+    this.updateMetaTheme();
+  },
+
+  updateMetaTheme() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.content = document.body.classList.contains('dark_theme') 
+        ? '#141218' 
+        : '#FDFDF5';
+    }
+  }
+};
+
+// ============ RIPPLE EFFECT ============
+function initRipple() {
+  document.querySelectorAll('.md-btn, .md-tile, .md-chip, .md-fab, .md-card').forEach(el => {
+    el.addEventListener('pointerdown', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const ripple = document.createElement('span');
+      ripple.style.cssText = `
+        position: absolute;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.12;
+        pointer-events: none;
+        transform: scale(0);
+        animation: ripple 0.6s cubic-bezier(0.2, 0, 0, 1);
+        width: 200px;
+        height: 200px;
+        margin-left: -100px;
+        margin-top: -100px;
+        left: ${x}px;
+        top: ${y}px;
+      `;
+      
+      this.style.position = 'relative';
+      this.style.overflow = 'hidden';
+      this.appendChild(ripple);
+      
+      setTimeout(() => ripple.remove(), 600);
+    });
+  });
+}
+
+// ============ APP BAR SCROLL ============
+function initAppBar() {
+  const appBar = document.querySelector('.md-app-bar');
+  if (!appBar) return;
+  
+  let lastScroll = 0;
+  window.addEventListener('scroll', () => {
+    const currentScroll = window.scrollY;
+    if (currentScroll > 4) {
+      appBar.classList.add('scrolled');
+    } else {
+      appBar.classList.remove('scrolled');
+    }
+    lastScroll = currentScroll;
+  });
+}
+
+// ============ LAZY LOAD ============
+function initLazyLoad() {
+  if (!('IntersectionObserver' in window)) return;
+  
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        if (img.dataset.src) {
+          img.src = img.dataset.src;
+          img.removeAttribute('data-src');
+          img.classList.add('loaded');
+        }
+        observer.unobserve(img);
+      }
+    });
+  }, { rootMargin: '50px' });
+  
+  document.querySelectorAll('img[data-src]').forEach(img => observer.observe(img));
+}
+
+// ============ SNACKBAR ============
+const Snackbar = {
+  show(message, actionText, actionCallback) {
+    let el = document.querySelector('.md-snackbar');
+    if (el) el.remove();
+    
+    el = document.createElement('div');
+    el.className = 'md-snackbar';
+    el.innerHTML = `
+      <span>${escapeHtml(message)}</span>
+      ${actionText ? `<span class="action">${escapeHtml(actionText)}</span>` : ''}
+    `;
+    
+    if (actionText && actionCallback) {
+      el.querySelector('.action').addEventListener('click', actionCallback);
+    }
+    
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    
+    setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => el.remove(), 400);
+    }, 4000);
+  }
+};
+
+// ============ DIALOG ============
+const Dialog = {
+  show(options = {}) {
+    const { title, content, actions = [] } = options;
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'md-dialog-overlay';
+    overlay.innerHTML = `
+      <div class="md-dialog">
+        <div class="md-dialog-header">
+          <h2 class="md-dialog-headline">${escapeHtml(title || '')}</h2>
+        </div>
+        <div class="md-dialog-body">${content || ''}</div>
+        <div class="md-dialog-actions">
+          ${actions.map(a => `<button class="md-btn ${a.class || 'md-btn-text'}" data-action="${a.id}">${escapeHtml(a.text)}</button>`).join('')}
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.close(overlay);
+    });
+    
+    actions.forEach(action => {
+      const btn = overlay.querySelector(`[data-action="${action.id}"]`);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          if (action.callback) action.callback();
+          this.close(overlay);
+        });
+      }
+    });
+    
+    requestAnimationFrame(() => overlay.classList.add('show'));
+    return overlay;
+  },
+  
+  close(overlay) {
+    overlay.classList.remove('show');
+    setTimeout(() => overlay.remove(), 400);
+  }
+};
+
+// ============ UTILITIES ============
+function escapeHtml(text) {
+  if (text == null) return '';
+  const div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+function formatTime(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+  
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+  if (diff < 604800000) return Math.floor(diff / 86400000) + '天前';
+  
+  return date.toLocaleDateString('zh-CN');
+}
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded', () => {
+  ThemeEngine.init();
+  initAppBar();
+  initRipple();
+  initLazyLoad();
+  
+  // Theme toggle
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => ThemeEngine.toggle());
+  }
+  
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+});
+
+// Add ripple keyframes
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes ripple {
+    to {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+`;

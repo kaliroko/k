@@ -1,0 +1,27 @@
+# 网站服务器配置文件
+# 修改配置后需要重启服务器生效
+
+# 服务器配置
+PORT=8080
+HOST="0.0.0.0"
+DOCUMENT_ROOT="."
+
+# 安全配置
+SECURITY_ENABLED=true
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_PER_HOUR=300
+MAX_UPLOAD_SIZE=100MB
+
+# 清理配置
+CLEANUP_INTERVAL=3600
+LOG_RETENTION_DAYS=30
+
+# 管理员配置
+ADMIN_EMAIL="admin@example.com"
+SITE_NAME="三中万能墙"
+
+# 数据库配置 (预留)
+# DB_HOST="localhost"
+# DB_NAME="website"
+# DB_USER="user"
+# DB_PASS="password"
