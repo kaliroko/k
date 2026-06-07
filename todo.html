@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List App</title>
+    <link rel="stylesheet" href="todo-styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✓ My To-Do List</h1>
+            <p class="subtitle">Stay organized and productive</p>
+        </header>
+
+        <main>
+            <!-- 输入表单 -->
+            <section class="input-section">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="todoInput" 
+                        placeholder="Add a new task..."
+                        autocomplete="off"
+                    >
+                    <button id="addBtn" class="add-btn">
+                        <span class="btn-icon">+</span>
+                        <span class="btn-text">Add</span>
+                    </button>
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="active">Active</button>
+                    <button class="filter-btn" data-filter="completed">Completed</button>
+                </div>
+            </section>
+
+            <!-- 统计信息 -->
+            <section class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total</span>
+                    <span class="stat-value" id="totalCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Active</span>
+                    <span class="stat-value active" id="activeCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Completed</span>
+                    <span class="stat-value completed" id="completedCount">0</span>
+                </div>
+            </section>
+
+            <!-- 待办事项列表 -->
+            <section class="todos-section">
+                <div class="todos-container" id="todosContainer">
+                    <div class="empty-state">
+                        <p class="empty-icon">📝</p>
+                        <p class="empty-text">No tasks yet. Add one to get started!</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 操作按钮 -->
+            <section class="actions">
+                <button id="clearBtn" class="action-btn clear-btn">
+                    🗑️ Clear Completed
+                </button>
+                <button id="clearAllBtn" class="action-btn clear-all-btn">
+                    ⚠️ Clear All
+                </button>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 To-Do List App | Stay productive! 🚀</p>
+        </footer>
+    </div>
+
+    <script src="todo-script.js"></script>
+</body>
+</html>
