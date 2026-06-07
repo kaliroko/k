@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园墙 - Campus Wall</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏫 校园墙</h1>
+            <p class="subtitle">分享校园故事，连接校园人心</p>
+        </header>
+
+        <main>
+            <!-- 发布表单 -->
+            <section class="post-form">
+                <textarea 
+                    id="postContent" 
+                    placeholder="分享你的想法、故事或有趣的事儿...（最多200字）"
+                    maxlength="200"
+                ></textarea>
+                <div class="form-footer">
+                    <span id="charCount">0/200</span>
+                    <button id="postBtn" onclick="publishPost()">发布</button>
+                </div>
+            </section>
+
+            <!-- 帖子列表 -->
+            <section class="posts-container" id="postsContainer">
+                <div class="empty-state">
+                    <p>还没有帖子，成为第一个分享者吧！</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Campus Wall | 校园墙 💭</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
