@@ -5,48 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新宁县第三中学 - 万能墙</title>
     <link rel="stylesheet" href="css/style.css">
-    <style>
-        /* 加载和错误状态样式 */
-        .loading-container, .error-container {
-            text-align: center;
-            padding: 48px 20px;
-            background: var(--card-bg, #fff);
-            border-radius: 28px;
-            margin: 16px 0;
-        }
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(0,0,0,0.1);
-            border-top-color: #6366f1;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .error-message {
-            color: #e11d48;
-            background: #ffe4e6;
-            padding: 12px 20px;
-            border-radius: 40px;
-            display: inline-block;
-        }
-        .retry-btn {
-            margin-top: 16px;
-            cursor: pointer;
-        }
-        /* 暗色主题兼容（若原CSS未定义则简单补充） */
-        body.dark-theme {
-            background-color: #121212;
-            color: #e0e0e0;
-        }
-        body.dark-theme .card,
-        body.dark-theme .loading-container,
-        body.dark-theme .error-container {
-            background-color: #1e1e1e;
-            color: #ddd;
-        }
-    </style>
 </head>
 <body>
     <header class="app-bar" id="navbar">
@@ -78,19 +36,67 @@
             </a>
         </div>
 
-        <!-- 动态文章列表容器 -->
-        <div id="posts-container">
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <p>正在加载文章...</p>
+        <!-- 静态示例文章列表，完全替代原PHP动态生成部分 -->
+        <a href="post.php?file=2025-06-01-运动会纪实.html" class="card">
+            <div class="card-title">运动会纪实：青春的赛道</div>
+            <div class="card-date">2025年06月01日</div>
+            <div class="card-excerpt">今天，全校师生齐聚操场，迎来了期待已久的春季运动会。百米赛道上，选手们如离弦之箭；跳高场地旁，欢呼声此起彼伏。我们用汗水书写青春，用拼搏诠释...</div>
+            <div class="card-actions">
+                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
             </div>
-        </div>
+        </a>
+
+        <a href="post.php?file=2025-05-28-校园歌手大赛回顾.html" class="card">
+            <div class="card-title">校园歌手大赛精彩回顾</div>
+            <div class="card-date">2025年05月28日</div>
+            <div class="card-excerpt">昨晚的礼堂座无虚席，一年一度的校园歌手大赛决赛落下帷幕。从流行到民谣，从独唱到乐队，选手们用歌声征服了全场。最终，高二（3）班的林晓同学凭借...</div>
+            <div class="card-actions">
+                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+            </div>
+        </a>
+
+        <a href="post.php?file=2025-05-25-期中考试经验分享.html" class="card">
+            <div class="card-title">学霸说：期中考试复习经验分享</div>
+            <div class="card-date">2025年05月25日</div>
+            <div class="card-excerpt">期中考试刚刚结束，我们邀请了几位年级前列的同学分享他们的复习方法。合理安排时间、制作思维导图、利用错题本……这些方法也许能帮到你。快来看看...</div>
+            <div class="card-actions">
+                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+            </div>
+        </a>
+
+        <a href="post.php?file=2025-05-22-篮球友谊赛通知.html" class="card">
+            <div class="card-title">高二年级篮球友谊赛通知</div>
+            <div class="card-date">2025年05月22日</div>
+            <div class="card-excerpt">为丰富课余生活，增强班级凝聚力，高二年级组决定于下周三下午举办篮球友谊赛。各班请尽快组建队伍，并在本周五前提交名单。具体赛程安排将于周末公布...</div>
+            <div class="card-actions">
+                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+            </div>
+        </a>
+
+        <a href="post.php?file=2025-05-20-摄影社团作品展.html" class="card">
+            <div class="card-title">光影校园——摄影社团作品展</div>
+            <div class="card-date">2025年05月20日</div>
+            <div class="card-excerpt">用镜头捕捉校园的美丽瞬间。摄影社团在教学楼大厅举办了小型作品展，展出了三十余幅同学们拍摄的校园风光、人物纪实作品。每一张照片背后，都藏着一段...</div>
+            <div class="card-actions">
+                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+            </div>
+        </a>
+
+        <a href="post.php?file=2025-05-18-心理健康周活动预告.html" class="card">
+            <div class="card-title">心理健康周系列活动预告</div>
+            <div class="card-date">2025年05月18日</div>
+            <div class="card-excerpt">5月25日是全国心理健康日，学校心理辅导室将举办为期一周的心理健康主题活动。包括心理讲座、团体辅导、心情墙留言等。关注心理健康，从认识自己开始...</div>
+            <div class="card-actions">
+                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+            </div>
+        </a>
     </main>
 
     <footer class="footer">
         <p>&copy; 2025 新宁县第三中学 万能墙. 保留所有权利.</p>
     </footer>
 
+    <!-- 公告弹窗，保留完整交互逻辑 -->
     <div id="notice-dialog" class="dialog-overlay">
         <div class="dialog">
             <div class="dialog-header">
@@ -100,7 +106,7 @@
             <div class="dialog-body">
                 <p>如今，官网已经使用kali api key 完善了key 接口测试
                 License cleanup: add SPDX GPL-2.0 license identifier to files with no…</p>
-                <p><small>公告时间：<span id="notice-date"></span></small></p>
+                <p><small>公告时间：2025年06月08日</small></p>
             </div>
             <div class="dialog-footer">
                 <button class="chip" onclick="dismissNotice()">不再显示</button>
@@ -111,26 +117,20 @@
 
     <script src="js/script.js"></script>
     <script>
-        // 设置公告日期
-        document.getElementById('notice-date').innerText = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
-
-        // 公告弹窗逻辑
         function closeNotice() {
-            const dialog = document.getElementById('notice-dialog');
-            if (dialog) dialog.classList.remove('show');
+            document.getElementById('notice-dialog').classList.remove('show');
             localStorage.setItem('noticeDismissed', 'true');
             localStorage.setItem('noticeDismissTime', Date.now());
         }
 
         function dismissNotice() {
-            const dialog = document.getElementById('notice-dialog');
-            if (dialog) dialog.classList.remove('show');
+            document.getElementById('notice-dialog').classList.remove('show');
             localStorage.setItem('noticeDismissed', 'true');
             localStorage.setItem('noticeDismissTime', Date.now());
             localStorage.setItem('noticeDismissLong', 'true');
         }
 
-        function initNoticeDialog() {
+        document.addEventListener('DOMContentLoaded', function() {
             const noticeDismissed = localStorage.getItem('noticeDismissed');
             const dismissTime = parseInt(localStorage.getItem('noticeDismissTime') || '0');
             const currentTime = Date.now();
@@ -143,104 +143,16 @@
                 const threshold = isLong ? days7 : hours24;
                 if (timeDiff < threshold) {
                     document.getElementById('notice-dialog').classList.remove('show');
-                    return;
                 } else {
                     localStorage.removeItem('noticeDismissed');
                     localStorage.removeItem('noticeDismissTime');
                     localStorage.removeItem('noticeDismissLong');
                 }
             }
+
             setTimeout(() => {
-                const dialog = document.getElementById('notice-dialog');
-                if (dialog) dialog.classList.add('show');
+                document.getElementById('notice-dialog').classList.add('show');
             }, 1000);
-        }
-
-        // 加载文章列表 (调用 get_posts.php)
-        async function loadPosts() {
-            const container = document.getElementById('posts-container');
-            if (!container) return;
-
-            try {
-                const response = await fetch('get_posts.php');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const posts = await response.json();
-
-                if (!posts.length) {
-                    container.innerHTML = `
-                        <div class="empty">
-                            <h2>暂无文章</h2>
-                            <p>快来写下你的第一篇文章吧！</p>
-                            <a href="create_post.php" class="tile active" style="display: inline-flex; margin-top: 16px; padding: 12px 24px;">
-                                <span class="tile-label">立即发布</span>
-                            </a>
-                        </div>
-                    `;
-                    return;
-                }
-
-                // 只显示前6篇
-                const displayPosts = posts.slice(0, 6);
-                let cardsHTML = '';
-                for (const post of displayPosts) {
-                    cardsHTML += `
-                        <a href="post.php?file=${encodeURIComponent(post.filename)}" class="card">
-                            <div class="card-title">${escapeHtml(post.title)}</div>
-                            <div class="card-date">${escapeHtml(post.date)}</div>
-                            <div class="card-excerpt">${escapeHtml(post.excerpt)}</div>
-                            <div class="card-actions">
-                                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
-                            </div>
-                        </a>
-                    `;
-                }
-                container.innerHTML = cardsHTML;
-            } catch (error) {
-                console.error('加载失败:', error);
-                container.innerHTML = `
-                    <div class="error-container">
-                        <div class="error-message">⚠️ 文章加载失败，请检查服务器是否支持PHP或刷新重试</div>
-                        <button class="chip retry-btn" onclick="loadPosts()">重新加载</button>
-                    </div>
-                `;
-            }
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-
-        // 主题切换（若外部 script.js 已处理则不再重复，这里作为后备）
-        document.addEventListener('DOMContentLoaded', function() {
-            loadPosts();
-            initNoticeDialog();
-
-            const themeBtn = document.getElementById('themeToggle');
-            if (themeBtn) {
-                // 避免重复绑定
-                if (!themeBtn.dataset.bound) {
-                    themeBtn.dataset.bound = 'true';
-                    themeBtn.addEventListener('click', function() {
-                        document.body.classList.toggle('dark-theme');
-                        const isDark = document.body.classList.contains('dark-theme');
-                        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                        themeBtn.textContent = isDark ? '☀️' : '🌙';
-                    });
-                }
-                const savedTheme = localStorage.getItem('theme');
-                if (savedTheme === 'dark') {
-                    document.body.classList.add('dark-theme');
-                    themeBtn.textContent = '☀️';
-                } else {
-                    themeBtn.textContent = '🌙';
-                }
-            }
         });
     </script>
 </body>
