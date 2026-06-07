@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新宁县第三中学 - 万能墙</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* 确保加载状态和空状态的样式与原有风格一致 */
+        .loading-container, .error-container {
+            text-align: center;
+            padding: 48px 20px;
+            background: var(--card-bg, #fff);
+            border-radius: 28px;
+            margin: 16px 0;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-message {
+            color: #e11d48;
+            background: #ffe4e6;
+            padding: 12px 20px;
+            border-radius: 40px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-bar" id="navbar">
+        <a href="index.html" class="app-bar-title">三中万能墙</a>
+        <nav class="app-bar-nav">
+            <a href="index.html" class="chip active">首页</a>
+            <a href="create_post.php" class="chip">发布</a>
+            <a href="kali.php" class="chip">管理</a>
+            <button class="chip" id="themeToggle" title="切换主题">🌙</button>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div>
+            <h1 class="hero-title">欢迎来到三中万能墙</h1>
+            <p class="hero-subtitle">分享校园生活，记录青春点滴</p>
+        </div>
+    </section>
+
+    <main class="main">
+        <div class="group" style="margin-bottom: 16px;">
+            <a href="create_post.php" class="tile active wide">
+                <span class="tile-icon">✏️</span>
+                <span class="tile-label">发布文章</span>
+            </a>
+            <a href="kali.php" class="tile wide">
+                <span class="tile-icon">⚙️</span>
+                <span class="tile-label">管理中心</span>
+            </a>
+        </div>
+
+        <!-- 动态文章列表容器 -->
+        <div id="posts-container">
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>正在加载文章...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 新宁县第三中学 万能墙. 保留所有权利.</p>
+    </footer>
+
+    <div id="notice-dialog" class="dialog-overlay">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">公告通知</h3>
+                <button class="dialog-close" onclick="closeNotice()">×</button>
+            </div>
+            <div class="dialog-body">
+                <p>如今，官网已经使用kali api key 完善了key 接口测试
+                License cleanup: add SPDX GPL-2.0 license identifier to files with no…</p>
+                <p><small>公告时间：<span id="notice-date"></span></small></p>
+            </div>
+            <div class="dialog-footer">
+                <button class="chip" onclick="dismissNotice()">不再显示</button>
+                <button class="chip active" onclick="closeNotice()">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        // 设置公告日期
+        document.getElementById('notice-date').innerText = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // 公告弹窗逻辑 (保留原有localStorage机制)
+        function closeNotice() {
+            const dialog = document.getElementById('notice-dialog');
+            if (dialog) dialog.classList.remove('show');
+            localStorage.setItem('noticeDismissed', 'true');
+            localStorage.setItem('noticeDismissTime', Date.now());
+        }
+
+        function dismissNotice() {
+            const dialog = document.getElementById('notice-dialog');
+            if (dialog) dialog.classList.remove('show');
+            localStorage.setItem('noticeDismissed', 'true');
+            localStorage.setItem('noticeDismissTime', Date.now());
+            localStorage.setItem('noticeDismissLong', 'true');
+        }
+
+        // 公告初始化控制
+        function initNoticeDialog() {
+            const noticeDismissed = localStorage.getItem('noticeDismissed');
+            const dismissTime = parseInt(localStorage.getItem('noticeDismissTime') || '0');
+            const currentTime = Date.now();
+            const hours24 = 24 * 60 * 60 * 1000;
+            const days7 = 7 * 24 * 60 * 60 * 1000;
+
+            if (noticeDismissed === 'true') {
+                const timeDiff = currentTime - dismissTime;
+                const isLong = localStorage.getItem('noticeDismissLong') === 'true';
+                const threshold = isLong ? days7 : hours24;
+                if (timeDiff < threshold) {
+                    document.getElementById('notice-dialog').classList.remove('show');
+                    return;
+                } else {
+                    localStorage.removeItem('noticeDismissed');
+                    localStorage.removeItem('noticeDismissTime');
+                    localStorage.removeItem('noticeDismissLong');
+                }
+            }
+            setTimeout(() => {
+                const dialog = document.getElementById('notice-dialog');
+                if (dialog) dialog.classList.add('show');
+            }, 1000);
+        }
+
+        // 渲染文章列表
+        async function loadPosts() {
+            const container = document.getElementById('posts-container');
+            if (!container) return;
+
+            try {
+                // 请求后端API获取文章列表 (posts_list.php 提供JSON数据)
+                const response = await fetch('posts_list.php');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const posts = await response.json();
+
+                if (!posts.length) {
+                    container.innerHTML = `
+                        <div class="empty">
+                            <h2>暂无文章</h2>
+                            <p>快来写下你的第一篇文章吧！</p>
+                            <a href="create_post.php" class="tile active" style="display: inline-flex; margin-top: 16px; padding: 12px 24px;">
+                                <span class="tile-label">立即发布</span>
+                            </a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // 只显示前6篇 (API已排序，这里可做slice保证)
+                const displayPosts = posts.slice(0, 6);
+                let cardsHTML = '';
+                for (const post of displayPosts) {
+                    cardsHTML += `
+                        <a href="post.php?file=${encodeURIComponent(post.filename)}" class="card">
+                            <div class="card-title">${escapeHtml(post.title)}</div>
+                            <div class="card-date">${escapeHtml(post.date)}</div>
+                            <div class="card-excerpt">${escapeHtml(post.excerpt)}</div>
+                            <div class="card-actions">
+                                <span class="chip" style="pointer-events: none;">阅读更多 →</span>
+                            </div>
+                        </a>
+                    `;
+                }
+                container.innerHTML = cardsHTML;
+            } catch (error) {
+                console.error('加载文章失败:', error);
+                container.innerHTML = `
+                    <div class="error-container">
+                        <div class="error-message">⚠️ 文章加载失败，请刷新页面重试</div>
+                        <button class="chip" style="margin-top: 16px;" onclick="loadPosts()">重新加载</button>
+                    </div>
+                `;
+            }
+        }
+
+        // 简单的防XSS辅助函数
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // 页面启动: 等待DOM加载完成后，加载文章列表 和 公告控制
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPosts();
+            initNoticeDialog();
+        });
+
+        // 主题切换按钮保持与原有script.js兼容 (如果外部script已处理，这里不做额外干预)
+        // 但为防止冲突，确保主题按钮存在且外部script可能已绑定，若不生效则增加一个后备
+        if (typeof toggleTheme === 'undefined') {
+            const themeBtn = document.getElementById('themeToggle');
+            if (themeBtn) {
+                themeBtn.addEventListener('click', function() {
+                    document.body.classList.toggle('dark-theme');
+                    const isDark = document.body.classList.contains('dark-theme');
+                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                    themeBtn.textContent = isDark ? '☀️' : '🌙';
+                });
+                // 初始化主题
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                    themeBtn.textContent = '☀️';
+                } else {
+                    themeBtn.textContent = '🌙';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
