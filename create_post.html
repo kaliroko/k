@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布文章 - 三中万能墙</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="app-bar" id="navbar">
+        <a href="index.html" class="app-bar-title">三中万能墙</a>
+        <nav class="app-bar-nav">
+            <a href="index.html" class="chip">首页</a>
+            <a href="create_post.html" class="chip active">发布</a>
+            <a href="kali.html" class="chip">管理</a>
+            <button class="chip" id="themeToggle" title="切换主题">🌙</button>
+        </nav>
+    </header>
+
+    <div class="editor-container">
+        <div class="editor-card">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-size: 1.75rem; font-weight: 400; color: var(--on-surface); margin-bottom: 8px;">发布新文章</h1>
+                <p style="color: var(--on-surface-variant); font-size: 14px;">创建包含图片、视频的HTML格式文章</p>
+            </div>
+
+            <!-- 表单直接提交到后端 save_post.php -->
+            <form id="postForm" action="save_post.php" method="POST">
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: var(--on-surface); margin-bottom: 8px;">文章标题</label>
+                    <input type="text" id="title" name="title" class="field" placeholder="输入文章标题" required>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: var(--on-surface); margin-bottom: 8px;">文章内容 (HTML格式)</label>
+                    <div class="toolbar">
+                        <button type="button" class="tool-btn" onclick="insertTag('<strong>', '</strong>')">粗体</button>
+                        <button type="button" class="tool-btn" onclick="insertTag('<em>', '</em>')">斜体</button>
+                        <button type="button" class="tool-btn" onclick="insertTag('<h3>', '</h3>')">标题</button>
+                        <button type="button" class="tool-btn" onclick="insertTag('<p>', '</p>')">段落</button>
+                        <button type="button" class="tool-btn" onclick="insertImageTag()">图片</button>
+                        <button type="button" class="tool-btn" onclick="insertVideoTag()">视频</button>
+                    </div>
+                    <textarea id="content" name="content" class="field" rows="15" placeholder="在这里输入文章内容，支持HTML标签..."></textarea>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: var(--on-surface); margin-bottom: 8px;">上传媒体文件</label>
+                    <div class="upload-area" onclick="document.getElementById('mediaUpload').click()">
+                        <p style="font-size: 1rem; color: var(--on-surface-variant); margin-bottom: 4px;">点击或拖拽文件到这里上传</p>
+                        <p style="font-size: 14px; color: var(--outline);">支持图片、视频、音频文件</p>
+                        <input type="file" id="mediaUpload" multiple style="display: none;" onchange="handleFileUpload(this.files)">
+                    </div>
+                    <div id="uploadProgress"></div>
+                </div>
+
+                <button type="submit" class="tile active" style="width: 100%; text-align: center;">
+                    <span class="tile-label">发布文章</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        // 插入HTML标签
+        function insertTag(startTag, endTag) {
+            const editor = document.getElementById('content');
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+
+            if (selectedText) {
+                editor.value = editor.value.substring(0, start) + startTag + selectedText + endTag + editor.value.substring(end);
+                editor.selectionStart = start + startTag.length;
+                editor.selectionEnd = end + startTag.length;
+            } else {
+                editor.value += startTag + endTag;
+                editor.selectionStart = editor.selectionEnd = editor.value.length - endTag.length;
+            }
+            editor.focus();
+        }
+
+        function insertImageTag() {
+            const url = prompt('请输入图片URL或上传后获取文件名:');
+            if (url) {
+                insertTag('<div class="post-image"><img src="' + url + '" alt="" style="max-width: 100%; height: auto;"></div>', '');
+            }
+        }
+
+        function insertVideoTag() {
+            const url = prompt('请输入视频URL或上传后获取文件名:');
+            if (url) {
+                insertTag('<div class="post-video"><video src="' + url + '" controls style="max-width: 100%;"></video></div>', '');
+            }
+        }
+
+        // 处理文件上传（调用 upload.php）
+        function handleFileUpload(files) {
+            const progress = document.getElementById('uploadProgress');
+            progress.innerHTML = '';
+
+            Array.from(files).forEach(file => {
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm', 'audio/mpeg', 'audio/wav'];
+
+                if (!allowedTypes.some(type => file.type.startsWith(type.split('/')[0]))) {
+                    alert('只支持图片、视频、音频文件');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const bar = document.createElement('div');
+                bar.style.cssText = 'padding: 10px 16px; background: var(--surface-variant); border-radius: 12px; margin-bottom: 8px; font-size: 14px; color: var(--on-surface-variant);';
+                bar.textContent = `上传中: ${file.name}...`;
+                progress.appendChild(bar);
+
+                fetch('upload.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP错误: ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        bar.textContent = `✓ 上传成功: ${data.url}`;
+                        bar.style.color = '#1E8E3E';
+                        bar.style.background = 'var(--secondary-container)';
+
+                        const editor = document.getElementById('content');
+                        if (file.type.startsWith('image')) {
+                            editor.value += `\n<div class="post-image"><img src="${data.url}" alt="" style="max-width: 100%; height: auto;"></div>\n`;
+                        } else if (file.type.startsWith('video')) {
+                            editor.value += `\n<div class="post-video"><video src="${data.url}" controls style="max-width: 100%;"></video></div>\n`;
+                        } else if (file.type.startsWith('audio')) {
+                            editor.value += `\n<div class="post-audio"><audio src="${data.url}" controls style="max-width: 100%;"></audio></div>\n`;
+                        }
+                    } else {
+                        bar.textContent = `✗ 上传失败: ${data.error}`;
+                        bar.style.color = 'var(--error)';
+                    }
+                })
+                .catch(error => {
+                    bar.textContent = `✗ 上传出错: ${error.message}`;
+                    bar.style.color = 'var(--error)';
+                    console.error('上传错误:', error);
+                });
+            });
+        }
+
+        // 拖拽上传支持
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.querySelector('.upload-area');
+
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                handleFileUpload(e.dataTransfer.files);
+            });
+        });
+    </script>
+</body>
+</html>

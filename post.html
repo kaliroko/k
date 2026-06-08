@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章详情 - 三中万能墙</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="app-bar" id="navbar">
+        <a href="index.html" class="app-bar-title">三中万能墙</a>
+        <nav class="app-bar-nav">
+            <a href="index.html" class="chip">首页</a>
+            <a href="create_post.html" class="chip">发布</a>
+            <a href="kali.html" class="chip">管理</a>
+            <button class="chip" id="themeToggle" title="切换主题">🌙</button>
+        </nav>
+    </header>
+
+    <main class="main" style="margin-top: 80px;">
+        <article class="post-detail">
+            <header class="post-header">
+                <h1 class="post-title">运动会纪实：青春的赛道</h1>
+                <div class="post-meta">
+                    <time>2025年06月01日</time>
+                </div>
+            </header>
+
+            <div class="stats">
+                <span>👁</span>
+                <span>已有 <span id="viewCount">0</span> 人查看</span>
+            </div>
+
+            <div class="post-body">
+                <!-- 静态示例文章内容 -->
+                <p>今天，全校师生齐聚操场，迎来了期待已久的春季运动会。百米赛道上，选手们如离弦之箭；跳高场地旁，欢呼声此起彼伏。我们用汗水书写青春，用拼搏诠释成长。</p>
+                <div class="post-image"><img src="uploads/sample.jpg" alt="运动会照片" style="max-width: 100%; height: auto;"></div>
+                <p>下午的接力赛更是将气氛推向高潮，各班选手配合默契，场边加油声震耳欲聋。最终，高二（3）班以微弱优势夺冠。</p>
+            </div>
+
+            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--outline-variant);">
+                <h2 style="font-size: 1.25rem; font-weight: 500; color: var(--on-surface); margin-bottom: 16px;">评论</h2>
+
+                <div class="comment" style="background: var(--surface-variant); margin-bottom: 16px;">
+                    <div id="commentMessage"></div>
+                    <input type="text" id="commentAuthor" class="field" placeholder="您的昵称" maxlength="50" style="margin-bottom: 8px;">
+                    <textarea id="commentContent" class="field" placeholder="请输入您的评论内容..." rows="3" maxlength="500" style="margin-bottom: 8px;"></textarea>
+                    <button type="button" class="tile active" onclick="submitComment()" style="width: auto; display: inline-flex; padding: 10px 24px;">
+                        <span class="tile-label">发表评论</span>
+                    </button>
+                </div>
+
+                <div id="commentsList">
+                    <div style="text-align: center; color: var(--on-surface-variant); padding: 32px;">加载评论中...</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--outline-variant);">
+                <a href="index.html" class="chip">← 返回首页</a>
+            </div>
+        </article>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 新宁县第三中学 万能墙. 保留所有权利.</p>
+    </footer>
+
+    <script src="js/script.js"></script>
+    <script>
+        // 使用固定示例文件名，实际部署时可替换为 URL 参数获取的真实文件名
+        const postFile = "2025-06-01-运动会纪实.html";
+
+        document.addEventListener('DOMContentLoaded', function() {
+            recordView();
+            loadComments();
+            loadViewCount();
+        });
+
+        function recordView() {
+            fetch('comments.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=record_view&post_file=' + encodeURIComponent(postFile)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) document.getElementById('viewCount').textContent = data.view_count;
+            })
+            .catch(console.error);
+        }
+
+        function loadViewCount() {
+            fetch('comments.php?action=get_views&post_file=' + encodeURIComponent(postFile))
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) document.getElementById('viewCount').textContent = data.view_count;
+            })
+            .catch(console.error);
+        }
+
+        function loadComments() {
+            fetch('comments.php?action=get_comments&post_file=' + encodeURIComponent(postFile))
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('commentsList');
+                if (data.success && data.comments.length > 0) {
+                    list.innerHTML = '';
+                    data.comments.forEach(c => {
+                        const div = document.createElement('div');
+                        div.className = 'comment';
+                        div.innerHTML = `
+                            <div class="comment-header">
+                                <span class="comment-author">${escapeHtml(c.author)}</span>
+                                <span class="comment-time">${formatTime(c.created_at)}</span>
+                            </div>
+                            <div class="comment-content">${escapeHtml(c.content)}</div>
+                        `;
+                        list.appendChild(div);
+                    });
+                } else {
+                    list.innerHTML = '<div style="text-align:center;color:var(--on-surface-variant);padding:32px;">暂无评论，快来发表第一条评论吧！</div>';
+                }
+            })
+            .catch(() => {
+                document.getElementById('commentsList').innerHTML = '<div style="text-align:center;color:var(--error);padding:16px;">加载评论失败</div>';
+            });
+        }
+
+        function submitComment() {
+            const author = document.getElementById('commentAuthor').value.trim();
+            const content = document.getElementById('commentContent').value.trim();
+
+            if (!author || !content) {
+                showMessage('作者和内容不能为空', 'error');
+                return;
+            }
+            if (author.length > 50 || content.length > 500) {
+                showMessage('内容长度超出限制', 'error');
+                return;
+            }
+
+            fetch('comments.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=add_comment&post_file=' + encodeURIComponent(postFile) + 
+                      '&author=' + encodeURIComponent(author) + 
+                      '&content=' + encodeURIComponent(content)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('评论发表成功！', 'success');
+                    document.getElementById('commentContent').value = '';
+                    loadComments();
+                } else {
+                    showMessage(data.error || '评论发表失败', 'error');
+                }
+            })
+            .catch(() => showMessage('网络错误，请稍后重试', 'error'));
+        }
+
+        function showMessage(message, type) {
+            const msg = document.getElementById('commentMessage');
+            msg.innerHTML = `<div class="msg-${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => msg.innerHTML = '', 5000);
+        }
+
+        // 辅助函数
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString('zh-CN');
+        }
+
+        setInterval(loadViewCount, 30000);
+    </script>
+</body>
+</html>

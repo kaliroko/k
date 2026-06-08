@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章管理 - 三中万能墙</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="app-bar" id="navbar">
+        <a href="index.html" class="app-bar-title">文章管理</a>
+        <nav class="app-bar-nav">
+            <a href="index.html" class="chip">返回博客</a>
+            <a href="kali.php?logout=1" class="chip">退出</a>
+            <button class="chip" id="themeToggle" title="切换主题">🌙</button>
+        </nav>
+    </header>
+
+    <main class="main" style="margin-top: 80px;">
+        <!-- 成功消息静态示例，实际使用时由后端重定向显示 -->
+        <div class="admin-grid">
+            <div>
+                <h2 style="font-size: 1.25rem; font-weight: 500; color: var(--on-surface); margin-bottom: 16px;">创建新文章</h2>
+                <!-- 表单提交到原 PHP 处理文件 -->
+                <form method="post" action="kali.php" id="postForm">
+                    <!-- CSRF token 静态占位，实际使用时后端会生成 -->
+                    <input type="hidden" name="csrf_token" value="STATIC_TOKEN_FOR_DEMO">
+
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: block; font-size: 14px; font-weight: 500; color: var(--on-surface); margin-bottom: 8px;">文章标题</label>
+                        <input type="text" name="title" class="field" placeholder="文章标题" required style="margin-bottom: 0;">
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: block; font-size: 14px; font-weight: 500; color: var(--on-surface); margin-bottom: 8px;">文章内容（支持HTML）</label>
+                        <div style="border: 1px solid var(--outline); border-radius: 16px; padding: 12px; background: var(--surface-variant); margin-bottom: 8px;">
+                            <input type="file" id="fileUpload" multiple accept="image/*,video/*,audio/*" 
+                                   style="width: 100%; margin-bottom: 8px; font-size: 14px;">
+                            <div id="uploadProgress" style="display: none;">
+                                <div style="background: var(--outline-variant); height: 4px; border-radius: 2px; overflow: hidden;">
+                                    <div id="progressBar" style="height: 100%; background: var(--primary); width: 0%; transition: width 0.3s;"></div>
+                                </div>
+                                <div id="progressText" style="font-size: 12px; color: var(--on-surface-variant); margin-top: 4px;"></div>
+                            </div>
+                            <div id="uploadedFiles" style="margin-top: 8px;"></div>
+                        </div>
+                        <textarea name="content" class="field" style="min-height: 160px;" placeholder="文章内容（支持HTML标签）" required></textarea>
+                    </div>
+
+                    <button type="submit" class="tile active" style="width: 100%; text-align: center;">
+                        <span class="tile-label">创建文章</span>
+                    </button>
+                </form>
+            </div>
+
+            <div>
+                <h2 style="font-size: 1.25rem; font-weight: 500; color: var(--on-surface); margin-bottom: 16px;">现有文章</h2>
+                <div id="postList">
+                    <!-- 静态示例文章，实际使用时可通过 JS 动态加载 -->
+                    <div class="list-item">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 500; color: var(--on-surface); font-size: 14px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">运动会纪实：青春的赛道</div>
+                            <div style="font-size: 12px; color: var(--on-surface-variant);">2025-06-01 10:30</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                            <a href="post.html?file=2025-06-01-运动会纪实.html" class="chip" style="height: 32px; line-height: 32px; padding: 0 12px; font-size: 13px;">查看</a>
+                            <button onclick="deletePost('2025-06-01-运动会纪实.html')" class="chip" style="height: 32px; line-height: 32px; padding: 0 12px; font-size: 13px; color: var(--error);">删除</button>
+                        </div>
+                    </div>
+                    <!-- 更多示例可以继续添加 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 删除文章（调用后端 delete_post.php）
+        function deletePost(filename) {
+            if (!confirm('确定要删除这篇文章吗？')) return;
+
+            fetch('delete_post.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'filename=' + encodeURIComponent(filename) + '&csrf_token=STATIC_TOKEN_FOR_DEMO'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('删除失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(() => alert('网络错误'));
+        }
+
+        // 文件上传逻辑（调用 upload.php）
+        document.getElementById('fileUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const uploadedFilesDiv = document.getElementById('uploadedFiles');
+
+            progressDiv.style.display = 'block';
+
+            Array.from(files).forEach((file, index) => {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', function(event) {
+                    if (event.lengthComputable) {
+                        const percent = Math.round((event.loaded / event.total) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressText.textContent = `上传中: ${percent}% - ${file.name}`;
+                    }
+                });
+
+                xhr.addEventListener('load', function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            const fileElement = document.createElement('div');
+                            fileElement.style.cssText = 'margin-bottom: 6px; padding: 8px; background: var(--primary-container); border-radius: 8px; font-size: 13px; color: var(--on-primary-container);';
+
+                            let icon = '📄';
+                            if (response.type.startsWith('image/')) icon = '📷';
+                            else if (response.type.startsWith('video/')) icon = '🎥';
+
+                            fileElement.innerHTML = `${icon} ${file.name} <a href="${response.url}" target="_blank" style="color: var(--primary); margin-left: 8px;">查看</a>`;
+                            uploadedFilesDiv.appendChild(fileElement);
+
+                            const editor = document.querySelector('textarea[name="content"]');
+                            if (response.type.startsWith('image/')) {
+                                editor.value += `\n<div class="post-image"><img src="${response.url}" alt="" style="max-width: 100%; height: auto;"></div>\n`;
+                            } else if (response.type.startsWith('video/')) {
+                                editor.value += `\n<div class="post-video"><video src="${response.url}" controls style="max-width: 100%;"></video></div>\n`;
+                            }
+                        } else {
+                            progressText.textContent = '上传失败: ' + (response.error || '未知错误');
+                            progressText.style.color = 'var(--error)';
+                        }
+                    }
+
+                    if (index === files.length - 1) {
+                        setTimeout(() => {
+                            progressDiv.style.display = 'none';
+                            progressBar.style.width = '0%';
+                            progressText.textContent = '';
+                            progressText.style.color = '';
+                        }, 2000);
+                    }
+                });
+
+                xhr.addEventListener('error', function() {
+                    alert('文件上传失败: ' + file.name);
+                });
+
+                xhr.open('POST', 'upload.php');
+                xhr.send(formData);
+            });
+        });
+    </script>
+    <script src="js/script.js"></script>
+</body>
+</html>
